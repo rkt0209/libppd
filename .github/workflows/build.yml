@@ -31,6 +31,14 @@ jobs:
   build-matrix:
     name: Build & Test (${{ matrix.arch }}, ${{ matrix.cups }})
     runs-on: ${{ matrix.runs-on }}
+    # The source-* legs build their CUPS / libcupsfilters from OpenPrinting
+    # @master, an unpinned moving target: a transient breakage there (e.g.
+    # libcups master failing its own `make install`) reddens the leg through no
+    # fault of libppd.  Keep the distro system-2x leg required (blocking), but
+    # let the source-@master legs report without blocking the PR.  ci-setup.sh
+    # annotates each failure as UPSTREAM-DEP-FAILED vs LIBPPD-FAILED so a real
+    # libppd regression on these legs is still visible even while non-blocking.
+    continue-on-error: ${{ matrix.cups != 'system-2x' }}
     # Building CUPS / libcupsfilters from source under QEMU is slow; allow plenty.
     timeout-minutes: 360
 
