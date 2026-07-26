@@ -34,6 +34,28 @@
 # runners; it detects which automatically.
 set -eu
 
+# Classify a failure so CI (and humans) can tell an upstream-dependency
+# breakage apart from a real libppd failure.  Each invocation of this script
+# handles exactly one subcommand, so $1 identifies which side failed:
+# providing the CUPS / libcupsfilters stack (built from @master on the
+# source-* legs, an unpinned moving target) vs building/testing libppd itself.
+# The source-* matrix legs are non-blocking precisely because of the former
+# class of transient upstream breakage; this label makes the distinction
+# explicit on both native and emulated legs (they run the same script).
+_subcmd="${1:-}"
+_classify_failure() {
+	rc=$?
+	[ "$rc" -eq 0 ] && exit 0
+	case "$_subcmd" in
+		cups|pdfio|libcupsfilters)
+			echo "::error::UPSTREAM-DEP-FAILED: '$_subcmd' failed while building the CUPS/libcupsfilters stack (from @master on the source-* legs). This is an upstream-dependency breakage, not a libppd bug." ;;
+		build-libppd)
+			echo "::error::LIBPPD-FAILED: libppd build/test failed." ;;
+	esac
+	exit "$rc"
+}
+trap _classify_failure EXIT
+
 PDFIO_VER=1.6.4
 LIBCUPSFILTERS_URL="${LIBCUPSFILTERS_URL:-https://github.com/OpenPrinting/libcupsfilters.git}"
 LIBCUPSFILTERS_REF="${LIBCUPSFILTERS_REF:-master}"
